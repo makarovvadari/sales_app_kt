@@ -1,36 +1,31 @@
-# Разведочный анализ данных
+# Exploratory data analysis
 
-# Настройка
+# Setup
 
 library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(readxl)
 
-# Устанавливаю рабочую папку
+# Working directory
 
 project_folder <- "/home/daria/Документы/GitHub/sales_app_kt/"
 setwd(project_folder)
 
-# Читаю сырые данные
+# Read raw data
 
 mydata <- read_xlsx("raw_data.xlsx")
 
-# Переименовываю колонки
+# Rename columns
 
 colnames(mydata) <- c("manager", "region", "city", "item", "dos", "customer",
                       "s_volume", "sales", "cost", "income")
 
-# Описательные статистики
+# Descriptive statistics
 
 summary(mydata)
 
-# Manager, region, city, item, customer -- текстовые колонки
-# DOS -- с 01.01.2018 по 24.02.2020
-# s_volume -- от 1 до 168
-# sales, cost, income -- числовые данные
-
-# Сделаем гистограмму по числовым данным
+# Histograms of numeric features
 
 par(mfrow= c(2, 2))
 hist(mydata$s_volume, col = "steelblue", main = "Объем продаж",
@@ -43,21 +38,37 @@ hist(mydata$income, col = "lightgreen", main = "Прибыль", xlab = "сум�
      ylab = "")
 par(mfrow = c(1, 1))
 
-# Проверим сколько уникальных значений в текстовых колонках
+# Check how many unique values in character features
 
-unique(mydata$manager)          # 3 менеджера
-unique(mydata$region)           # 6 областей
-length(unique(mydata$city))     # 35 городов
-unique(mydata$item)             # 4 товара
-length(unique(mydata$customer)) # 27 покупателей
+length(unique(mydata$manager))          # 3 менеджера
+length(unique(mydata$region))           # 6 областей
+length(unique(mydata$city))             # 35 городов
+length(unique(mydata$item))             # 4 товара
+length(unique(mydata$customer))         # 27 покупателей
 
-# Продажи по дням
+# Sales by managers
 
-mydata$manager <- as.factor(mydata$manager)
-plot(x = mydata$dos, y = mydata$sales, frame = F, main = "Продажи по дням",
-     xlab = "", ylab = "выручка", col = mydata$manager, pch = 19)
+man <- mydata %>% filter(manager == "Менеджер 1") %>% select(dos, region, sales)
+man$region <- as.factor(man$region)
+plot(man$dos, man$sales, col = man$region, frame = F, pch = 19)
+legend("topleft", legend = as.factor(unique(man$region)), 
+       col = c("red", "black"), pch = 19, cex = 0.8)
 
-# Добавляю модель продаж по всем менеджерам
+model <- lm(man$sales ~ man$dos, man)
+abline(model, lwd = 2, col = "blue", lty = 2)
 
-ggplot(mydata) + 
+mydata %>% 
+        group_by(region, item) %>% 
+        summarise(sales = sum(sales)) %>% 
+        mutate(weight = sales / sum(sales)) %>% 
+        ggplot() +
+        geom_point(aes(region, item, col = weight, size = sales)) +
+        theme_light() + xlab("") + ylab("") +
+        scale_color_continuous(low = "green", high = "red") +
+        ggtitle("Sales matrix")
+
+by_man <- mydata %>% group_by(manager) %>% summarise(sales = sum(sales))
+pie(by_man$sales, labels = by_man$manager, radius = 1,
+    col = c("#999999", "#E69F00", "#56B4E9"))
+
 
